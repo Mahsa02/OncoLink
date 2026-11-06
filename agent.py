@@ -89,8 +89,8 @@ def _tool_similar_patients(patient_index, k = 5) :
 
         lines = [
             f"Similar patients: {summary['total']}",
-            f"Responders: {summary['responders']}",
-            f"Non-Responders: {summary['non_responders']}",
+            f"Alive at follow-up: {summary['responders']}",
+            f"Deceased: {summary['non_responders']}",
         ]
 
         for p in patients:
@@ -141,6 +141,7 @@ def run_agent(user_prompt, system_prompt = None, max_turns = 4) :
     if system_prompt is None:
         system_prompt = (
             "You are an oncology AI assistant. Be concise, clinical, and precise. "
+            "The model predicts overall survival status (alive vs. deceased at last follow-up) from the METABRIC cohort; it is not a treatment-response model. "
             "Use tools when helpful. Limit responses to under 150 words."
         )
 
@@ -219,6 +220,7 @@ def run_direct(user_prompt, system_prompt = None) :
     if system_prompt is None:
         system_prompt = (
             "You are an oncology AI assistant. Be concise, clinical, and precise. "
+            "The model predicts overall survival status (alive vs. deceased at last follow-up) from the METABRIC cohort; it is not a treatment-response model. "
             "Use only the evidence provided in the prompt. Do not invent patient outcomes."
         )
 
