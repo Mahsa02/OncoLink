@@ -218,6 +218,70 @@ plt.close()
         save_feature_importance_fallback(model, X_test, detail)
 
 
+def save_calibration_report(model, X_test, y_test, model_name, feature_name):
+    """
+    Check whether predicted probabilities can be read at face value:
+    of patients given ~70% survival probability, do ~70% survive?
+    Saves a reliability diagram and the Brier score.
+    """
+    from sklearn.calibration import calibration_curve
+    from sklearn.metrics import brier_score_loss
+
+    prob = model.predict_proba(X_test)[:, 1]
+    frac_pos, mean_pred = calibration_curve(y_test, prob, n_bins=10, strategy="quantile")
+    brier = brier_score_loss(y_test, prob)
+    baseline = brier_score_loss(y_test, np.full_like(prob, np.mean(y_test)))
+
+    plt.figure(figsize=(5, 5))
+    plt.plot([0, 1], [0, 1], linestyle="--", color="grey", label="Perfectly calibrated")
+    plt.plot(mean_pred, frac_pos, marker="o", label=f"{model_name} | {feature_name}")
+    plt.xlabel("Predicted probability of being alive at follow-up")
+    plt.ylabel("Observed fraction alive")
+    plt.title(f"Calibration (Brier {brier:.3f}, baseline {baseline:.3f})")
+    plt.legend(loc="upper left")
+    plt.tight_layout()
+    plt.savefig(os.path.join(RESULTS_DIR, "calibration.png"), bbox_inches="tight")
+    plt.close()
+
+    with open(os.path.join(RESULTS_DIR, "calibration.json"), "w") as f:
+        json.dump({"brier": float(brier), "brier_baseline": float(baseline),
+                   "mean_predicted": [float(v) for v in mean_pred],
+                   "fraction_observed": [float(v) for v in frac_pos]}, f, indent=2)
+    print(f"Calibration: Brier {brier:.4f} (predict-the-mean baseline {baseline:.4f})")
+
+
+def train_survival_model(X, y, feature_name):
+    """
+    Fit a Random Survival Forest on the same feature set as the best classifier,
+    using follow-up time, so the app can show a per-patient survival curve.
+    """
+    months_path = os.path.join(INPUT_DIR, "survival_months.csv")
+    try:
+        from sksurv.ensemble import RandomSurvivalForest
+        from sksurv.util import Surv
+    except ImportError:
+        print("scikit-survival not installed; skipping survival model.")
+        return
+    if not os.path.exists(months_path):
+        print("survival_months.csv not found; re-run processing.py to enable the survival model.")
+        return
+
+    months = pd.read_csv(months_path).iloc[:, 0].values
+    X_np = np.asarray(X.values if hasattr(X, "values") else X, dtype=float)
+    y_np = np.asarray(y)
+    keep = ~np.isnan(months)
+    # METABRIC: overall_survival == 1 means alive, so the death event is label 0
+    target = Surv.from_arrays(event=(y_np[keep] == 0), time=months[keep])
+
+    rsf = RandomSurvivalForest(n_estimators=200, min_samples_leaf=15, random_state=42, n_jobs=-1)
+    rsf.fit(X_np[keep], target)
+    joblib.dump(rsf, os.path.join(RESULTS_DIR, "survival_model.pkl"))
+    with open(os.path.join(RESULTS_DIR, "survival_model_info.json"), "w") as f:
+        json.dump({"model_name": "Random Survival Forest", "feature_name": feature_name,
+                   "n_patients": int(keep.sum())}, f, indent=2)
+    print(f"Survival model (Random Survival Forest, {feature_name}) saved.")
+
+
 def train_incremental_base():
     """
     Train and save an SGDClassifier for online/incremental updates
@@ -276,6 +340,8 @@ def run_experiments():
     best_metadata = {}
     best_X_train = None
     best_X_test = None
+    best_y_test = None
+    best_X_full = None
 
     for feature_name, X in feature_sets:
         X_train, X_test, y_train, y_test = make_split(X, y)
@@ -302,6 +368,8 @@ def run_experiments():
                                  "feature_name": feature_name}
                 best_X_train = X_train
                 best_X_test = X_test
+                best_y_test = y_test
+                best_X_full = X
 
     results_df = pd.DataFrame(results).sort_values(
         by="ROC_AUC", ascending=False)
@@ -319,6 +387,10 @@ def run_experiments():
 
     results_df.to_csv(os.path.join(
         RESULTS_DIR, "model_comparison.csv"), index=False)
+
+    save_calibration_report(best_model, best_X_test, best_y_test,
+                            best_metadata["model_name"], best_metadata["feature_name"])
+    train_survival_model(best_X_full, y, best_metadata["feature_name"])
 
     train_incremental_base()
 
