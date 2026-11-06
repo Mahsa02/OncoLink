@@ -154,7 +154,7 @@ class PatientSimilarityEngine:
                 "distance": round(euclidean_dist, 4),
                 "similarity_pct": round(similarity_pct, 1),
                 "outcome": int(meta.get("outcome", -1)),
-                "outcome_label": "Responder" if meta.get("outcome") == 1 else "Non-Responder",
+                "outcome_label": "Alive at follow-up" if meta.get("outcome") == 1 else "Deceased",
                 "age": meta.get("age", "N/A"),
                 "er_status": meta.get("er_status", "N/A"),
                 "her2_status": meta.get("her2_status", "N/A"),
