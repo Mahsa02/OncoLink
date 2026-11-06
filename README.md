@@ -25,6 +25,10 @@ All preprocessing (imputation, scaling, gene selection, PCA) is fit inside each 
 
 **Takeaways:** gene expression adds a modest, consistent gain over clinical features alone (+0.02–0.03 AUC). Gene PCA lets a simple linear model match tree ensembles. The survival models use follow-up time that the binary label discards.
 
+**Calibration:** the deployed classifier (XGBoost on gene PCA + clinical features) has a held-out Brier score of 0.199, versus 0.244 for predicting the cohort average. A reliability diagram is saved to `outputs_metabric/model_results/calibration.png`.
+
+**In the app:** each patient gets a risk label (Lower / Higher Risk), a survival probability, and a per-patient survival curve with 5- and 10-year estimates from a Random Survival Forest trained on the same features.
+
 ## Team and contributions
 
 Built as a team project for a Columbia genomics course.
