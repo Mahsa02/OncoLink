@@ -41,7 +41,7 @@ def render(current_evaluation = None):
 
 def _render_feature_importance():
     st.subheader("Feature Importance & SHAP Explainability")
-    st.caption("Which genomic and clinical features most influence treatment response predictions.")
+    st.caption("Which genomic and clinical features most influence survival risk predictions.")
 
     model = load_best_model()
     model_info = load_best_model_info()
@@ -83,8 +83,8 @@ def _shap_section(model_info):
         return
 
     st.markdown(
-        "**SHAP** (SHapley Additive exPlanations) — red pushes toward Responder, "
-        "blue pushes toward Non-Responder. Width shows magnitude."
+        "**SHAP** (SHapley Additive exPlanations) — red pushes toward Lower Risk (survival), "
+        "blue pushes toward Higher Risk. Width shows magnitude."
     )
 
     if os.path.exists(shap_plot):
