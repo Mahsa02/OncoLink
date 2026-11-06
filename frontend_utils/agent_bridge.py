@@ -87,12 +87,12 @@ def _static_explanation(pred, profile, retrieval_context=None) :
     conf_text = "high" if conf > 0.8 else "moderate" if conf > 0.6 else "low"
 
     base = (
-        f"**Prediction Summary:** The model estimates {likelihood} of treatment response "
+        f"**Prediction Summary:** The model estimates {likelihood} of survival "
         f"(probability: {prob:.1%}).\n\n"
         f"**Confidence:** {conf_text.capitalize()} confidence ({conf:.1%}). "
         f"{'The model is reasonably certain about this prediction.' if conf > 0.7 else 'Some uncertainty exists — review additional clinical data.'}\n\n"
         f"**Key Factors:** Receptor status (ER: {er}, HER2: {her2}) and gene expression "
-        f"patterns are among the strongest predictors of treatment response in this model.\n\n"
+        f"patterns are among the strongest predictors of survival in this model.\n\n"
         f"**Limitations:** This prediction is based on the METABRIC training dataset. "
         f"Configure a Groq API key in `.env` for AI-powered explanations with similar patient retrieval.\n\n"
         f"**Disclaimer:** This is decision support only. All treatment decisions must involve qualified clinicians."
@@ -104,7 +104,7 @@ def _static_explanation(pred, profile, retrieval_context=None) :
     if sim.get("total"):
         base += (
             f"\n\n**Retrieved Similar Cohort:** {sim['responders']} of {sim['total']} similar historical patients "
-            f"responded ({sim.get('response_rate', 'N/A')}% response rate)."
+            f"were alive at last follow-up ({sim.get('response_rate', 'N/A')}% survival rate)."
         )
     return base
 
@@ -118,8 +118,8 @@ def _static_decision_support(pred, model_info) :
     return (
         f"**Model Performance:** {model_name} using {feature_name} features achieved the highest "
         f"ROC AUC in validation testing.\n\n"
-        f"**Clinical Consideration:** The predicted response probability of {prob:.1%} "
-        f"{'suggests potential benefit from the current treatment plan' if prob > 0.5 else 'warrants careful evaluation of alternative treatment strategies'}.\n\n"
+        f"**Clinical Consideration:** The predicted survival probability of {prob:.1%} "
+        f"{'indicates a lower-risk profile' if prob > 0.5 else 'indicates a higher-risk profile that warrants close review'}.\n\n"
         f"**Recommended Actions:**\n"
         f"- Correlate with pathology and imaging findings\n"
         f"- Consider genomic profiling (e.g., Oncotype DX)\n"
