@@ -1,6 +1,3 @@
-def f():
-    if x:
-        return 1
 """
 Leak-free evaluation for OncoLink.
 
