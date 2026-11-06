@@ -88,7 +88,7 @@ def _render_patient_cards(patients):
     with col_f3:
         pred_filter = st.selectbox(
             "Prediction filter",
-            ["All Predictions", "Responder", "Non-Responder"],
+            ["All Predictions", "Lower Risk", "Higher Risk"],
             label_visibility="collapsed",
         )
 
@@ -99,9 +99,9 @@ def _render_patient_cards(patients):
         filtered = [p for p in filtered if p.get("true_outcome") is None]
     elif outcome_filter == "Confirmed":
         filtered = [p for p in filtered if p.get("true_outcome") is not None]
-    if pred_filter == "Responder":
+    if pred_filter == "Lower Risk":
         filtered = [p for p in filtered if (p.get("prediction") or {}).get("prediction") == 1]
-    elif pred_filter == "Non-Responder":
+    elif pred_filter == "Higher Risk":
         filtered = [p for p in filtered if (p.get("prediction") or {}).get("prediction") == 0]
 
     st.markdown(f"<p style='font-size:0.82rem; color:#8a9ab8;'>{len(filtered)} patient(s) shown</p>", unsafe_allow_html=True)
@@ -123,16 +123,16 @@ def _render_single_card(patient):
 
     prob = pred.get("probability_respond", 0)
     if pred.get("prediction") == 1:
-        pred_badge = f"<span class='badge-resp'>Responder ({prob:.0%})</span>"
+        pred_badge = f"<span class='badge-resp'>Lower Risk ({prob:.0%} survival)</span>"
     elif pred.get("prediction") == 0:
-        pred_badge = f"<span class='badge-non'>Non-Responder ({prob:.0%})</span>"
+        pred_badge = f"<span class='badge-non'>Higher Risk ({prob:.0%} survival)</span>"
     else:
         pred_badge = "<span class='badge-pending'>No Prediction</span>"
 
     if outcome_val == 1:
-        outcome_badge = "<span class='badge-confirmed'>Outcome: Responder</span>"
+        outcome_badge = "<span class='badge-confirmed'>Outcome: Alive</span>"
     elif outcome_val == 0:
-        outcome_badge = "<span class='badge-non'>Outcome: Non-Responder</span>"
+        outcome_badge = "<span class='badge-non'>Outcome: Deceased</span>"
     else:
         outcome_badge = "<span class='badge-pending'>Outcome: Pending</span>"
 
@@ -208,7 +208,7 @@ def _render_outcome_dialog(patient):
     )
 
     if existing_outcome is not None:
-        label = "Responder" if existing_outcome == 1 else "Non-Responder"
+        label = "Alive at follow-up" if existing_outcome == 1 else "Deceased"
         st.info(f"An outcome is already recorded: **{label}**. Submitting again will update the record.")
 
     col_left, col_right = st.columns(2)
@@ -216,7 +216,7 @@ def _render_outcome_dialog(patient):
         true_outcome = st.radio(
             "Confirmed real-world outcome",
             options=[1, 0],
-            format_func=lambda x: "✅ Responder" if x == 1 else "❌ Non-Responder",
+            format_func=lambda x: "✅ Alive at follow-up" if x == 1 else "❌ Deceased",
             index=0 if existing_outcome != 0 else 1,
             key=f"outcome_radio_{eval_id}",
         )
@@ -413,9 +413,9 @@ def _render_patient_detail_view():
     st.markdown("<div class='section-header'>Confirmed Outcome</div>", unsafe_allow_html=True)
 
     if outcome_val == 1:
-        st.success("Confirmed: **Responder** — positive treatment response.", icon="✅")
+        st.success("Confirmed: **Alive at last follow-up**.", icon="✅")
     elif outcome_val == 0:
-        st.error("Confirmed: **Non-Responder** — poor or no response.", icon="❌")
+        st.error("Confirmed: **Deceased**.", icon="❌")
     else:
         st.warning("Outcome has not been confirmed yet.", icon="⏳")
 
@@ -447,8 +447,8 @@ def _render_saved_patient_analysis_tabs(profile,prediction,evaluation_id):
         st.warning(f"Could not restore the full analysis sections for this saved patient: {exc}")
         return
 
-    st.markdown("<div class='section-header'>Predicted Treatment Response</div>", unsafe_allow_html=True)
-    evaluate_patient_view._render_prediction(prediction)
+    st.markdown("<div class='section-header'>Predicted Survival Risk</div>", unsafe_allow_html=True)
+    evaluate_patient_view._render_prediction(prediction, feature_bundle.get("model_features") if feature_bundle else None)
 
     st.markdown("---")
     st.markdown("<div class='section-header'>Grounded Clinical Explanation</div>", unsafe_allow_html=True)
