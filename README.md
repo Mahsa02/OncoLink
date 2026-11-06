@@ -1,11 +1,38 @@
-# OncoLink - Precision Medicine Platform
-The goal of OncoLink is to support precision medicine by helping oncologists predict a patient’s response to a treatment plan and make more informed clinical decisions. OncoLink can predict, with probability/confidence, whether a patient will respond to treatment, show the top k most similar historical patients from the METABRIC dataset, allow physicians to enter outcomes for patients so we can improve the model, and let them see insights into how the model makes predictions.
+# OncoLink — Survival Risk Prediction for Breast Cancer (METABRIC)
 
-## Genomics 2 Group (202605-3)
+OncoLink is a clinician-facing decision-support app built on the METABRIC breast cancer cohort (1,904 patients, clinical data plus 492 mRNA expression features). For a new patient it predicts overall survival status with a confidence score, finds the most similar historical patients, explains the prediction with SHAP, and lets physicians log confirmed outcomes that feed an incremental learner.
 
-- Anjali Bhimanadham — apb2192
-- Mahsa Mohajeri — mm6859
-- Daniyah Taimur — drt2145
+> **What the model predicts:** the `overall_survival` flag (alive vs. deceased at last follow-up). It is a survival-risk model, not a treatment-response model. Treatment variables (chemotherapy, hormone therapy, radiotherapy) are used as inputs, not as an outcome.
+
+## Results (leak-free, 5-fold cross-validation)
+
+All preprocessing (imputation, scaling, gene selection, PCA) is fit inside each training fold, so no test data leaks into the transforms. Reproduce with `python evaluate_cv.py`.
+
+**Survival status classification (ROC AUC, mean ± std)**
+
+| Features | Logistic Regression | Random Forest | XGBoost |
+|---|---|---|---|
+| Clinical only | 0.732 ± 0.011 | 0.708 ± 0.021 | 0.739 ± 0.015 |
+| Clinical + 492 genes | 0.700 ± 0.020 | 0.734 ± 0.021 | **0.762 ± 0.018** |
+| Clinical + gene PCA (20) | 0.758 ± 0.017 | 0.754 ± 0.009 | 0.756 ± 0.015 |
+
+**Time-to-event survival analysis (Harrell's C-index)**
+
+| Features | Cox (elastic net) | Random Survival Forest |
+|---|---|---|
+| Clinical only | 0.664 ± 0.007 | 0.683 ± 0.011 |
+| Clinical + gene PCA (20) | 0.669 ± 0.007 | **0.689 ± 0.009** |
+
+**Takeaways:** gene expression adds a modest, consistent gain over clinical features alone (+0.02–0.03 AUC). Gene PCA lets a simple linear model match tree ensembles. The survival models use follow-up time that the binary label discards.
+
+## Team and contributions
+
+Built as a team project for a Columbia genomics course.
+
+- **Mahsa Mohajeri** — designed the overall application and led all machine learning: data processing, feature engineering, model training and comparison, SHAP explainability, patient similarity engine, incremental learning, and the leak-free evaluation in `evaluate_cv.py`.
+- **Anjali Bhimanadham** — frontend.
+- **Daniyah Taimur** — backend.
+
 
 ## Project Structure
 
@@ -18,6 +45,7 @@ OncoLink_v4/
 ├── login_page.py
 ├── auth.py
 ├── evaluate_patient.py
+├── evaluate_cv.py
 ├── patient_list.py
 ├── processing.py
 ├── model.py
@@ -205,6 +233,11 @@ processing.py
 model.py
   - trains Logistic Regression, Random Forest, optional XGBoost, and an SGD incremental baseline
   - writes model comparison, ROC/confusion plots, best_model.pkl, incremental_model.pkl, and SHAP/fallback artifacts
+        |
+        v
+evaluate_cv.py  (optional, reporting only)
+  - leak-free 5-fold CV of every model/feature combination
+  - survival models (Cox, Random Survival Forest) scored by C-index
         |
         v
 app.py
