@@ -51,7 +51,7 @@ def render(raw_df):
             f"Genomic input note: {source_note}, so OncoLink used a cohort-mean genomic baseline and the physician-entered clinical fields for this evaluation."
         )
 
-    st.markdown("<div class='section-header'>Predicted Treatment Response</div>", unsafe_allow_html=True)
+    st.markdown("<div class='section-header'>Predicted Survival Risk</div>", unsafe_allow_html=True)
     _render_prediction(prediction)
 
     st.markdown("---")
@@ -346,7 +346,7 @@ def _render_prediction(prediction):
         st.caption("Predicted outcome for this new patient")
 
     with col_prob:
-        st.metric("Response Probability", f"{prediction['probability_respond']:.1%}")
+        st.metric("Survival Probability", f"{prediction['probability_respond']:.1%}")
 
     with col_conf:
         conf = prediction["confidence"]
@@ -364,13 +364,13 @@ def _render_prediction(prediction):
         f"""
         <div style='margin: 0.6rem 0 0.2rem 0;'>
             <div style='display:flex; justify-content:space-between; font-size:0.8rem; color:#666; margin-bottom:3px;'>
-                <span>Likely Non-Responder</span><span>Likely Responder</span>
+                <span>Higher Risk</span><span>Lower Risk</span>
             </div>
             <div style='background:#f0f0f0; border-radius:8px; height:10px; overflow:hidden;'>
                 <div style='width:{bar_pct}%; background:{bar_color}; height:100%; border-radius:8px; transition:width 0.5s;'></div>
             </div>
             <div style='text-align:center; font-size:0.78rem; color:#555; margin-top:3px;'>
-                {prob:.1%} predicted treatment response probability
+                {prob:.1%} predicted probability of being alive at follow-up
             </div>
         </div>
         """,
@@ -378,13 +378,13 @@ def _render_prediction(prediction):
     )
 
     if prob > 0.7:
-        st.success("The model estimates a higher likelihood of treatment response for this new patient.", icon="📈")
+        st.success("The model estimates a higher likelihood of survival for this new patient.", icon="📈")
     elif prob > 0.5:
-        st.info("The model estimates a moderate likelihood of treatment response. Review this together with tumor biology and treatment intent.", icon="📊")
+        st.info("The model estimates a moderate likelihood of survival. Review this together with tumor biology and treatment intent.", icon="📊")
     elif prob > 0.3:
-        st.warning("The model estimates a lower likelihood of treatment response. Historical analogs and alternative strategies merit close review.", icon="📉")
+        st.warning("The model estimates a lower likelihood of survival. Historical analogs and alternative strategies merit close review.", icon="📉")
     else:
-        st.error("The model estimates a substantially lower likelihood of treatment response. Historical outcomes suggest a more challenging course.", icon="⚠️")
+        st.error("The model estimates a substantially lower likelihood of survival. Historical outcomes suggest a more challenging course.", icon="⚠️")
 
 
 def _render_explanation(profile,prediction,feature_bundle,evaluation_id,):
@@ -420,7 +420,7 @@ def _render_explanation(profile,prediction,feature_bundle,evaluation_id,):
             """
             OncoLink first retrieves:
             1. The most similar historical METABRIC patients for this newly entered case
-            2. Their observed responder / non-responder outcomes
+            2. Their observed survival outcomes (alive / deceased at follow-up)
             3. The current model-performance table used by the app
 
             The explanatory text is then generated from those retrieved facts rather than from free-form prompting alone.
@@ -480,17 +480,17 @@ def _render_similar_patients(raw_df, profile, feature_bundle, evaluation_id, def
     rate = summary.get("response_rate")
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Similar Cases", summary["total"])
-    m2.metric("Responders", summary["responders"])
-    m3.metric("Non-Responders", summary["non_responders"])
-    m4.metric("Historical Response Rate", f"{rate}%" if rate is not None else "—")
+    m2.metric("Alive", summary["responders"])
+    m3.metric("Deceased", summary["non_responders"])
+    m4.metric("Historical Survival Rate", f"{rate}%" if rate is not None else "—")
 
     if rate is not None:
         if rate >= 65:
-            st.success(f"{rate}% of the selected similar cohort responded positively to treatment.", icon="📊")
+            st.success(f"{rate}% of the selected similar cohort were alive at last follow-up.", icon="📊")
         elif rate >= 40:
-            st.warning(f"{rate}% of the selected similar cohort responded, suggesting mixed historical outcomes.", icon="📊")
+            st.warning(f"{rate}% of the selected similar cohort were alive at last follow-up, suggesting mixed historical outcomes.", icon="📊")
         else:
-            st.error(f"Only {rate}% of the selected similar cohort responded, suggesting a difficult historical pattern.", icon="📊")
+            st.error(f"Only {rate}% of the selected similar cohort were alive at last follow-up, suggesting a difficult historical pattern.", icon="📊")
 
     st.markdown("**Most Similar Prior Cases**")
     st.caption("Select a historical case to review full available clinical details.")
@@ -503,7 +503,7 @@ def _render_similar_patients(raw_df, profile, feature_bundle, evaluation_id, def
                 "#": i + 1,
                 "Historical Patient": f"#{patient['index']}",
                 "Similarity": f"{patient['similarity_pct']}%",
-                "Outcome": "✅ Responder" if patient["outcome"] == 1 else "❌ Non-Responder",
+                "Outcome": "✅ Alive at follow-up" if patient["outcome"] == 1 else "❌ Deceased",
                 "Age": patient.get("age", "—"),
                 "ER": patient.get("er_status", "—"),
                 "HER2": patient.get("her2_status", "—"),
@@ -539,7 +539,7 @@ def _render_similar_patients(raw_df, profile, feature_bundle, evaluation_id, def
 
 def _render_similar_patient_detail(raw_df, current_profile, sim_patient):
     idx = sim_patient["index"]
-    outcome_label = "✅ Responder" if sim_patient["outcome"] == 1 else "❌ Non-Responder"
+    outcome_label = "✅ Alive at follow-up" if sim_patient["outcome"] == 1 else "❌ Deceased"
     sim_pct = sim_patient["similarity_pct"]
 
     st.markdown(
@@ -583,7 +583,7 @@ def _render_similar_patient_detail(raw_df, current_profile, sim_patient):
         st.markdown(f"- Surgery: {_fmt(hist_profile['Surgery Type'])}")
 
     st.caption(
-        f"Current evaluation: {current_profile.get('patient_label', 'New patient')} · Historical case #{idx} had {sim_pct}% similarity and {sim_patient['outcome_label'].lower()}."
+        f"Current evaluation: {current_profile.get('patient_label', 'New patient')} · Historical case #{idx} had {sim_pct}% similarity (outcome: {sim_patient['outcome_label'].lower()})."
     )
 
 
