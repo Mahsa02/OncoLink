@@ -113,6 +113,9 @@ for col in gene_cols:
 
 print("Number of Gene Features:", len(gene_cols))
 
+# Follow-up time is kept aside (not a model input) so model.py can fit a survival model
+survival_months = pd.to_numeric(df["overall_survival_months"], errors="coerce")
+
 print("\n DATA CLEANING ")
 
 threshold = int(0.8 * len(df))
@@ -195,6 +198,7 @@ pd.DataFrame(X_pca_50).to_csv(f"{OUTPUT_DIR}/X_pca_50.csv", index=False)
 pd.DataFrame(X_pca_var).to_csv(f"{OUTPUT_DIR}/X_pca_95_var.csv", index=False)
 pd.DataFrame(X_clinical_scaled, columns=clinical_cols).to_csv(f"{OUTPUT_DIR}/X_clinical.csv", index=False)
 y.to_csv(f"{OUTPUT_DIR}/y_labels.csv", index=False)
+survival_months.loc[df.index].rename("overall_survival_months").to_csv(f"{OUTPUT_DIR}/survival_months.csv", index=False)
 
 df[gene_cols + clinical_cols + [target_col]].to_csv(f"{OUTPUT_DIR}/raw_features_unscaled.csv", index=False)
 
@@ -212,8 +216,8 @@ summary = {
     "Number of Gene Features": X_genes.shape[1],
     "Number of Clinical Features": X_clinical.shape[1],
     "Total Combined Features": X_all.shape[1],
-    "Responders (label=1)": int((y == 1).sum()),
-    "Non-Responders (label=0)": int((y == 0).sum()),
+    "Alive at follow-up (label=1)": int((y == 1).sum()),
+    "Deceased (label=0)": int((y == 0).sum()),
     "PCA 95pct Components": int(pca_var.n_components_),
 }
 
