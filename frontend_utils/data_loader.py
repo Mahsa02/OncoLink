@@ -26,6 +26,9 @@ BEST_MODEL_INFO_PATH = os.path.join(RESULTS_DIR, "best_model_info.txt")
 MODEL_COMPARISON_PATH = os.path.join(RESULTS_DIR, "model_comparison.csv")
 SHAP_VALUES_PATH = os.path.join(RESULTS_DIR, "shap_values.npy")
 SHAP_NAMES_PATH = os.path.join(RESULTS_DIR, "shap_feature_names.json")
+SURVIVAL_MODEL_PATH = os.path.join(RESULTS_DIR, "survival_model.pkl")
+SURVIVAL_MODEL_INFO_PATH = os.path.join(RESULTS_DIR, "survival_model_info.json")
+CALIBRATION_PATH = os.path.join(RESULTS_DIR, "calibration.json")
 
 GENE_COLS_PATH = os.path.join(OUTPUTS_DIR, "gene_column_names.csv")
 CLINICAL_COLS_PATH = os.path.join(OUTPUTS_DIR, "clinical_column_names.csv")
@@ -69,6 +72,50 @@ def load_best_model():
     if not os.path.exists(BEST_MODEL_PATH):
         return None
     return joblib.load(BEST_MODEL_PATH)
+
+
+@st.cache_resource
+def load_survival_model():
+    """Random Survival Forest trained in model.py on the best classifier's feature set."""
+    if not os.path.exists(SURVIVAL_MODEL_PATH):
+        return None, {}
+    info = {}
+    if os.path.exists(SURVIVAL_MODEL_INFO_PATH):
+        with open(SURVIVAL_MODEL_INFO_PATH) as f:
+            info = json.load(f)
+    return _safe_joblib_load(SURVIVAL_MODEL_PATH), info
+
+
+@st.cache_data
+def load_calibration():
+    if not os.path.exists(CALIBRATION_PATH):
+        return None
+    with open(CALIBRATION_PATH) as f:
+        return json.load(f)
+
+
+def predict_survival_curve(survival_model, feature_row):
+    """
+    Return the patient's predicted survival curve as a DataFrame
+    (Years, Survival Probability) plus point estimates at 5 and 10 years.
+    """
+    if survival_model is None or feature_row is None or len(feature_row) == 0:
+        return None
+    X = np.asarray(feature_row.values if hasattr(feature_row, "values") else feature_row, dtype=float)
+    try:
+        fn = survival_model.predict_survival_function(X[:1])[0]
+    except ValueError:
+        return None
+    months = np.asarray(fn.x, dtype=float)
+    probs = np.asarray(fn.y, dtype=float)
+
+    def at(month):
+        if month > months.max():
+            return None
+        return float(fn(month))
+
+    curve = pd.DataFrame({"Years": months / 12.0, "Survival Probability": probs})
+    return {"curve": curve, "five_year": at(60), "ten_year": at(120)}
 
 
 @st.cache_data
@@ -214,7 +261,7 @@ def predict_feature_row(model, feature_row):
         prob = model.predict_proba(arr)[0]
     return {
         "prediction": int(pred),
-        "label": "Responder" if int(pred) == 1 else "Non-Responder",
+        "label": "Lower Risk" if int(pred) == 1 else "Higher Risk",
         "probability_respond": float(prob[1]),
         "probability_non_respond": float(prob[0]),
         "confidence": float(max(prob)),
