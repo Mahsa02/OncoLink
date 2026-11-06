@@ -69,7 +69,7 @@ def render(current_evaluation = None):
 
     existing = _get_existing(store, selected_eval_id)
     if existing is not None:
-        outcome_str = "Responder" if existing == 1 else "Non-Responder"
+        outcome_str = "Alive at follow-up" if existing == 1 else "Deceased"
         st.info(f"A confirmed outcome is already recorded for this evaluation: **{outcome_str}**")
         st.caption("Submitting again will append a corrected or updated record.")
 
@@ -94,7 +94,7 @@ def render(current_evaluation = None):
         true_outcome = st.radio(
             "Submit final observed outcome",
             options=[1, 0],
-            format_func=lambda x: "✅ Responder — positive treatment response" if x == 1 else "❌ Non-Responder — poor or no response",
+            format_func=lambda x: "✅ Alive at last follow-up" if x == 1 else "❌ Deceased",
             key=f"outcome_radio_{selected_eval_id}",
         )
 
@@ -138,8 +138,8 @@ def render(current_evaluation = None):
 
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Total Submitted", stats["total"])
-    m2.metric("Responders", stats["responders"])
-    m3.metric("Non-Responders", stats["non_responders"])
+    m2.metric("Alive", stats["responders"])
+    m3.metric("Deceased", stats["non_responders"])
     m4.metric("Until Next Update", f"{pending}/{threshold}")
 
     if threshold > 0:
