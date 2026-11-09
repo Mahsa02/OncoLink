@@ -33,9 +33,9 @@ All preprocessing (imputation, scaling, gene selection, PCA) is fit inside each 
 
 Built as a team project for a Columbia genomics course.
 
-- **Mahsa Mohajeri** — designed the overall application and led all machine learning: data processing, feature engineering, model training and comparison, SHAP explainability, patient similarity engine, incremental learning, and the leak-free evaluation in `evaluate_cv.py`.
+- **Mahsa Mohajeri** — designed the overall application and led the modeling: model training and comparison, SHAP explainability, the patient similarity engine, and incremental learning.
 - **Anjali Bhimanadham** — frontend.
-- **Daniyah Taimur** — backend.
+- **Daniyah Taimur** — backend, data processing, and the LLM explanation agent.
 
 
 ## Project Structure
